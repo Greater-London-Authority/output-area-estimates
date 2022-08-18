@@ -2,14 +2,18 @@
 Ben Corr & Wil Tonkiss  
 August 2022
 
-ONS Small Area Population Estimates (SAPE) area available for all output areas
-in England & Wales. Full detailed component data are not currently published
-for this geography.
+ONS Small Area Population Estimates (SAPE) are available for all output areas
+in England & Wales. Full detailed components of change data are not currently
+published for this geography.
 
 All data used in this project are publicly available from the ONS website.
 
 
 ### Available data
+
+#### Population
+Single-year-of-age (SYA) by sex estimates of the population for each output area (OA)
+in E&W are published for the period 2002-2020.
 
 #### Births
 OA births data are published for the period 2002-2020 for all OAs in E&W.
@@ -20,14 +24,14 @@ LSOA deaths by age group are published for all LSOAs in E&W.
 OA total deaths are published for all OAs in E&W.
 
 #### Migration
-No migration data is currently published for geographies below LA.
+Migration data is not currently published for geographies below LA.
 
 
 ### Deaths modelling
 The OA deaths are modeled in a 2 stage process:   
 1. LSOA deaths by sex and SYA are modeled using the deaths by grouped age at
 LSOA and deaths by single year at OA. The LSOA SYA deaths are calculated using
-an iterative proportional fitting method.  
+an iterative proportional fitting (ipf) method.  
 2. OA deaths by sex and SYA are modeled using the deaths by SYA at
 LSOA calculated in the previous step and total deaths at OA. As with the
 LSOA deaths, the OA deaths are calculated using an iterative proportional
@@ -44,7 +48,7 @@ Gross migration flows are not calculated as part of this process.
 **oa_population_sya** - reads in raw xlsx files and compiles them into rds outputs.  
 **oa_births_sex** -  reads in raw xlsx files and compiles them into rds outputs.  
 **oa_deaths_totals** - reads in raw xlsx files and compiles them into rds outputs.  
-**lsoa_deaths_sya** - Uses grouped-age LSOA data and SYA deaths data at LAD to calculated
+**lsoa_deaths_sya** - Uses grouped-age LSOA data and SYA deaths data at LAD to calculate
 LSOA SYA deaths using ipf.  
 Warning: Takes 30 minutes.  
 **oa_deaths_sya** - Uses LSOA SYA data calculated above with OA total deaths data to
@@ -63,8 +67,8 @@ This project currently standardises all Local Authorities to 2021 codes and boun
 
 **Ageing-on**
 When ageing a population forward a year births are normally added after the
-existing population population has been aged on.
-An alternate method, used here, is to start with births and
+existing population has been aged on.
+An alternate method, used in this project, is to start with births and
 subtract 1 year and make the age -1. This is then bound to the population and
 everything is moved forward 1 year and 1 age increment.  
   
