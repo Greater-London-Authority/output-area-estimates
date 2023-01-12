@@ -170,7 +170,8 @@ for(yr in 2012:2020){
 for(yr in 2010:2011){
   
   file.copy(paste0("processed/population_by_year/oa_population_all_EW_", yr, ".rds"),
-            paste0("processed/2021_series/population_by_year/oa_population_all_EW_", yr, ".rds"))
+            paste0("processed/2021_series/population_by_year/oa_population_all_EW_", yr, ".rds"),
+            overwite = TRUE)
 }
 
 #-------------------------------------------------------------------------------

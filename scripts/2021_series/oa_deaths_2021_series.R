@@ -16,7 +16,8 @@ dir.create("processed/2021_series/deaths_by_year", showWarnings = FALSE)
 for(yr in 2011:2020){
   
   file.copy(paste0("processed/deaths_by_year/oa_deaths_all_EW_", yr, ".rds"),
-            paste0("processed/2021_series/deaths_by_year/oa_deaths_all_EW_", yr, ".rds"))
+            paste0("processed/2021_series/deaths_by_year/oa_deaths_all_EW_", yr, ".rds"),
+            overwrite = TRUE)
   
 }
 

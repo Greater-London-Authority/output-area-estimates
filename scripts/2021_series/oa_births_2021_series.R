@@ -44,8 +44,7 @@ lsoa_females_raw <- fread(paste0(lsoa_births_path,"birthsbylsoamidyear01to21_fem
   select(LSOA11CD, sex, age, lsoa_births) %>%
   data.frame()
 
-lsoa_births <- bind_rows(lsoa_males_raw, lsoa_females_raw) #%>% 
-  #filter(grepl("E01", LSOA11CD)) # TODO WALES
+lsoa_births <- bind_rows(lsoa_males_raw, lsoa_females_raw)
 
 rm(lsoa_births_path, lsoa_males_raw, lsoa_females_raw)
 
