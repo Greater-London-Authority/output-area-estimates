@@ -14,7 +14,7 @@ dir.create("processed/2021_series", showWarnings = FALSE)
 f_paths <- list(lookup_2011 = "lookups/OA11_LSOA11_MSOA11_LAD21.rds",
                 lookup_2021 =  paste0(Q_census_folder, "geog_lookups/2021_oa_lsoa_msoa_la.csv"),
                 oa11_to_msoa21 =  paste0(Q_census_folder, "geog_lookups/2011_oa_2021_msoa_E&W.csv"),
-                new_la_series = "Q:/Teams/D&PA/Demography/MYE/gla_revised_mye_series.rds",
+                new_la_series = "E:/project_folders/demography/ben/R_projects/create_modelled_backseries/outputs/modelled_backseries.rds",
                 oa_in = "processed/population_by_year/oa_population_all_EW_GLA_series_",
                 lsoa_in = paste0(Q_data_folder, "ons_small_area_population_estimates/population_LSOA11_01_to_20.rds"),
                 msoa_in = paste0(Q_data_folder, "ons_small_area_population_estimates/population_MSOA11_01_to_20.rds"),
@@ -23,7 +23,7 @@ f_paths <- list(lookup_2011 = "lookups/OA11_LSOA11_MSOA11_LAD21.rds",
                 lsoa_out = "processed/2021_series/lsoa_population_all_EW_2021_series.rds",
                 msoa_out = "processed/2021_series/msoa_population_all_EW_2021_series.rds")
 
-#---
+#-------------------------------------------------------------------------------
 
 #Prep existing series at different levels for re-scaling
 
@@ -39,7 +39,7 @@ new_LA_series <- la_in %>%
   filter(year %in% 2012:2020, component == "population") %>%
   filter(substr(LAD21CD,2,3) %in% c("06","07","08","09")) %>% 
   select(LAD21CD, year, sex, age, new_la) %>% 
-  mutate(new_la = ifelse(new_la < 0, 0, new_la)) # TODO this is temp
+  mutate(new_la = ifelse(new_la < 0, 0, new_la))
 
 #---
 
@@ -53,7 +53,6 @@ msoa_in <- readRDS(f_paths$msoa_in) %>% data.frame()
 
 existing_msoa_series <- msoa_in %>% 
   dtplyr::lazy_dt() %>%
-  filter(substr(MSOA11CD,1,1)!="W") %>%  # TODO Add wales back in
   filter(year %in% 2012:2020) %>% 
   select(MSOA11CD, year, sex, age, popn = population) %>% 
   left_join(distinct(select(lookup_2011, MSOA11CD, LAD21CD)), by = "MSOA11CD") %>% 
@@ -113,7 +112,6 @@ existing_lsoa_series <- lsoa_in %>%
 new_msoa_series <-  rename(new_msoa_series, rescaled_msoa = popn)
 
 new_lsoa_series <- left_join(existing_lsoa_series, new_msoa_series, by = c("MSOA11CD","year","sex","age")) %>%
-  filter(substr(LSOA11CD,1,1) != "W") %>% # TODO Figure out Wales
   mutate(scaling = ifelse(msoa_total == 0, 0, rescaled_msoa/msoa_total),
          rescaled_lsoa = popn*scaling) %>% 
   select(LSOA11CD, year, sex, age, rescaled_lsoa) %>% 
@@ -127,6 +125,7 @@ saveRDS(new_lsoa_series, f_paths$lsoa_out)
 
 rm(lsoa_in, existing_lsoa_series)
 gc()
+
 #---
 
 #OA
@@ -136,7 +135,7 @@ gc()
 new_lsoa_series <-  rename(new_lsoa_series, rescaled_lsoa = popn)
 dir.create(f_paths$oa_out, showWarnings = FALSE)
 
-#yr <- 2020
+
 for(yr in 2012:2020){
   
   message(yr)
@@ -145,7 +144,6 @@ for(yr in 2012:2020){
   
   existing_oa_series <- oa_in %>%
     dtplyr::lazy_dt() %>%
-    filter(substr(OA11CD,1,1) != "W") %>% # TODO Sort Wales out
     group_by(LSOA11CD, year, sex, age) %>% 
     mutate(lsoa_total = sum(popn)) %>% 
     data.frame()
@@ -165,35 +163,22 @@ for(yr in 2012:2020){
   
 }
 
-#---
-
-#2010 & 2011 is the same as the existing GLA series
-# file.copy("processed/population_by_year/oa_population_all_EW_2010.rds", 
-#           "processed/2021_series/population_by_year/oa_population_all_EW_2010.rds")
-# 
-# file.copy("processed/population_by_year/oa_population_all_EW_GLA_series_2011.rds", 
-#           "processed/2021_series/population_by_year/oa_population_all_EW_2011.rds")
-
-#TODO This is temporary until we have Wales
-
-readRDS("processed/population_by_year/oa_population_all_EW_2010.rds") %>% 
-  filter(substr(OA11CD,1,1)=="E") %>% 
-  select(OA11CD, LSOA11CD, LAD21CD, year, sex, age, popn) %>% 
-  saveRDS("processed/2021_series/population_by_year/oa_population_all_EW_2010.rds")
-
-readRDS("processed/population_by_year/oa_population_all_EW_GLA_series_2011.rds") %>% 
-  filter(substr(OA11CD,1,1)=="E") %>% 
-  select(OA11CD, LSOA11CD, LAD21CD, year, sex, age, popn) %>% 
-  saveRDS("processed/2021_series/population_by_year/oa_population_all_EW_2011.rds")
-
 #-------------------------------------------------------------------------------
 
+#2010 & 2011 is the same as the existing series
+
+for(yr in 2010:2011){
+  
+  file.copy(paste0("processed/population_by_year/oa_population_all_EW_", yr, ".rds"),
+            paste0("processed/2021_series/population_by_year/oa_population_all_EW_", yr, ".rds"))
+}
+
+#-------------------------------------------------------------------------------
 
 #2021 is different because we can't start with an existing OA estimate
 #We do have the census estimate for MSOAs though
 
-oa11_to_msoa21 <- fread(f_paths$oa11_to_msoa21) %>% data.frame() %>% 
-  E00175033
+oa11_to_msoa21 <- fread(f_paths$oa11_to_msoa21) %>% data.frame() 
 
 new_LA_series <- readRDS(f_paths$new_la_series) %>% 
   filter(year == 2021) %>%
@@ -211,7 +196,6 @@ new_LA_series_age <- new_LA_series %>%
 
 #Scale the census MSOA data to match the 2021 LAD estimate
 census_msoa <- fread(f_paths$census_msoa) %>% 
-  filter(substr(MSOA21CD,1,1)=="E") %>%  # TODO Sort out Wales
   data.frame() %>% 
   mutate(age = ifelse(age > 90, 90, age)) %>% 
   group_by(MSOA21CD, age) %>% 
@@ -252,7 +236,7 @@ missing_MSOAs <- setdiff(census_msoa$MSOA21CD, oa_2021$MSOA21CD)
 missing_lookup <- data.frame(OA11CD = c("E00175033", "E00100663"),
                              MSOA21CD = missing_MSOAs)
 
-missing_popn <- filter(census_msoa, MSOA21CD %in% mssing_MSOAs) %>% 
+missing_popn <- filter(census_msoa, MSOA21CD %in% missing_MSOAs) %>% 
   left_join(missing_lookup, by = "MSOA21CD") %>% 
   rename(missing = popn) %>% 
   select(-MSOA21CD) %>% 
@@ -281,7 +265,7 @@ oa_2021_final <- oa_2021 %>%
   left_join(lad_total, by = "LAD21CD") %>%
   mutate(scaling = ifelse(oa_summed == 0, 0, lad_total/oa_summed),
          rescaled_oa = popn*scaling) %>% 
-  select(OA11CD, LSOA11CD, MSOA21CD, LAD21CD, year, sex, age, rescaled_oa) %>% 
+  select(OA11CD, LSOA11CD, LAD21CD, year, sex, age, rescaled_oa) %>% 
   rename(popn = rescaled_oa)
 
 # Check that the sum of all OAs is about equal to the sum of all LAs
@@ -290,9 +274,9 @@ sum(census_msoa$popn)
 sum(new_LA_series$popn)
 sum(is.na(oa_2021_final))
 
-saveRDS(oa_2021_final, paste0(f_paths$oa_out, "oa_population_all_EW_2021.rds"))
+#-------------------------------------------------------------------------------
 
-#---
+saveRDS(oa_2021_final, paste0(f_paths$oa_out, "oa_population_all_EW_2021.rds"))
 
 tm2 <- Sys.time()
 print(tm2-tm)
