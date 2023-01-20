@@ -177,10 +177,6 @@ for(yr in 2010:2011){
 #-------------------------------------------------------------------------------
 
 #2021 is different because we can't start with an existing OA estimate
-#We do have the census estimate for MSOAs though
-
-oa11_to_msoa21 <- fread(f_paths$oa11_to_msoa21) %>% data.frame() 
-
 new_LA_series <- readRDS(f_paths$new_la_series) %>% 
   filter(year == 2021) %>%
   rename(popn = value,
@@ -189,69 +185,23 @@ new_LA_series <- readRDS(f_paths$new_la_series) %>%
   filter(substr(LAD21CD,2,3) %in% c("06","07","08","09")) %>% 
   select(LAD21CD, year, sex, age, popn)
 
-new_LA_series_age <- new_LA_series %>% 
-  group_by(LAD21CD, age) %>% 
-  summarise(popn = sum(popn), .groups = 'drop_last') %>% 
-  data.frame()
-
-
-#Scale the census MSOA data to match the 2021 LAD estimate
-census_msoa <- fread(f_paths$census_msoa) %>% 
-  data.frame() %>% 
-  mutate(age = ifelse(age > 90, 90, age)) %>% 
-  group_by(MSOA21CD, age) %>% 
-  summarise(count = sum(count), .groups = 'drop_last') %>% 
-  data.frame() %>% 
-  left_join(distinct(select(lookup_2021, MSOA21CD, LAD21CD)), by = "MSOA21CD") %>% 
-  group_by(LAD21CD, age) %>% 
-  mutate(msoa_proportion = count/sum(count)) %>% 
-  data.frame() %>% 
-  left_join(new_LA_series_age, by = c("LAD21CD","age")) %>% 
-  mutate(scaled_popn = popn * msoa_proportion) %>% 
-  select(MSOA21CD, age, scaled_popn) %>% 
-  rename(popn = scaled_popn)
-
-sum(census_msoa$popn)
-sum(new_LA_series$popn)
-sum(is.na(census_msoa))
 
 #Scale the 2020 OA popn to the 2021 MSOA pop
-oa_2021 <- left_join(new_oa_series, oa11_to_msoa21, by = "OA11CD") %>%
+oa_2021 <- new_oa_series %>%
   mutate(year = 2021) %>% 
-  group_by(MSOA21CD, age) %>% 
-  mutate(msoa_total = sum(popn)) %>% 
+  group_by(LAD21CD, sex, age) %>% 
+  mutate(lad_total = sum(popn)) %>% 
   data.frame() %>% 
-  left_join(census_msoa, by = c("MSOA21CD","age")) %>%
+  left_join(new_LA_series, by = c("LAD21CD","sex","age","year")) %>%
   rename(popn = popn.x,
-         census_popn = popn.y) %>% 
-  mutate(scaling = ifelse(msoa_total == 0, 0, census_popn/msoa_total),
+         new_popn = popn.y) %>% 
+  mutate(scaling = ifelse(lad_total == 0, 0, new_popn/lad_total),
          rescaled_oa = popn*scaling) %>% 
-  select(OA11CD, LSOA11CD, MSOA21CD, LAD21CD, year, sex, age, rescaled_oa) %>% 
+  select(OA11CD, LSOA11CD, LAD21CD, year, sex, age, rescaled_oa) %>% 
   rename(popn = rescaled_oa)
 
-# 2x 2021 MSOAs have no 2011 OA centroid within them
-# This MSOA population is therefore missing from the above data frame
-missing_MSOAs <- setdiff(census_msoa$MSOA21CD, oa_2021$MSOA21CD)
-
-#Identified the OA11 that the MSOA21 sits within on GIS
-missing_lookup <- data.frame(OA11CD = c("E00175033", "E00100663"),
-                             MSOA21CD = missing_MSOAs)
-
-missing_popn <- filter(census_msoa, MSOA21CD %in% missing_MSOAs) %>% 
-  left_join(missing_lookup, by = "MSOA21CD") %>% 
-  rename(missing = popn) %>% 
-  select(-MSOA21CD) %>% 
-  right_join(oa_2021, by = c("OA11CD", "age")) 
-
-oa_2021 <- missing_popn %>% 
-  filter(OA11CD %in% missing_lookup$OA11CD) %>% 
-  group_by(OA11CD, age) %>% 
-  mutate(sex_ratio = popn/sum(popn),
-         sex_ratio = ifelse(is.nan(sex_ratio), 0.5, sex_ratio)) %>% 
-  data.frame() %>% 
-  mutate(popn = popn + (missing*sex_ratio)) %>% 
-  select(names(oa_2021)) %>% 
-  bind_rows(filter(missing_popn, !OA11CD %in% missing_lookup$OA11CD))
+sum(oa_2021$popn)
+sum(new_LA_series$popn)
 
 #Scale to LA at the total population level
 lad_total <- new_LA_series %>% 
@@ -271,7 +221,6 @@ oa_2021_final <- oa_2021 %>%
 
 # Check that the sum of all OAs is about equal to the sum of all LAs
 sum(oa_2021_final$popn)
-sum(census_msoa$popn)
 sum(new_LA_series$popn)
 sum(is.na(oa_2021_final))
 
